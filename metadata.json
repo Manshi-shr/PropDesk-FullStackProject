@@ -1,0 +1,6 @@
+{
+  "name": "PropDesk",
+  "description": "Enterprise-grade property and rental management system for managing properties, units, tenants, leases, rent collection, maintenance workflows, expenses, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
