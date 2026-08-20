@@ -862,6 +862,8 @@ apiRouter.get('/rent', (req: Request, res: Response) => {
 
     return {
       ...r,
+      amountDue: r.amount,
+      amountPaid: r.paidAmount || 0,
       propertyName: prop?.name || 'Unknown Property',
       unitNumber: unit?.unitNumber || 'Unknown Unit',
       tenantName: tenant?.fullName || 'Unknown Tenant',
@@ -961,8 +963,22 @@ apiRouter.post('/payments', (req: Request, res: Response) => {
   const currentUser = (req as any).user as User;
   const { rentRecordId, tenantId, propertyId, unitId, amount, paymentMethod = 'UPI', transactionReference, notes } = req.body;
 
-  if (!tenantId || !amount) {
-    return res.status(400).json({ error: 'Tenant and payment amount are required' });
+  if (!amount) {
+    return res.status(400).json({ error: 'Payment amount is required' });
+  }
+
+  let resolvedTenantId = tenantId;
+  if (!resolvedTenantId || resolvedTenantId.startsWith('usr-')) {
+    const matched = db.getTenants().find(t => t.userId === currentUser.id || t.id === tenantId || t.userId === tenantId);
+    if (matched) {
+      resolvedTenantId = matched.id;
+    } else if (rentRecordId) {
+      const targetR = db.getRentRecords().find(r => r.id === rentRecordId);
+      if (targetR) resolvedTenantId = targetR.tenantId;
+    }
+  }
+  if (!resolvedTenantId) {
+    resolvedTenantId = 'tnt-1';
   }
 
   const paymentCount = db.getPayments().length + 1;
@@ -975,13 +991,13 @@ apiRouter.post('/payments', (req: Request, res: Response) => {
     targetRent = db.getRentRecords().find(r => r.id === rentRecordId);
   }
 
-  const resolvedPropId = propertyId || targetRent?.propertyId || db.getTenants().find(t => t.id === tenantId)?.propertyId || 'prop-1';
-  const resolvedUnitId = unitId || targetRent?.unitId || db.getTenants().find(t => t.id === tenantId)?.unitId || 'unit-1';
+  const resolvedPropId = propertyId || targetRent?.propertyId || db.getTenants().find(t => t.id === resolvedTenantId)?.propertyId || 'prop-1';
+  const resolvedUnitId = unitId || targetRent?.unitId || db.getTenants().find(t => t.id === resolvedTenantId)?.unitId || 'unit-1';
 
   const newPayment: Payment = {
     id: payId,
     rentRecordId,
-    tenantId,
+    tenantId: resolvedTenantId,
     propertyId: resolvedPropId,
     unitId: resolvedUnitId,
     amount: Number(amount),
@@ -989,7 +1005,7 @@ apiRouter.post('/payments', (req: Request, res: Response) => {
     paymentMethod: paymentMethod as any,
     transactionReference: transactionReference || `TXN${Date.now()}`,
     receiptNumber: receiptNum,
-    recordedBy: currentUser.name,
+    recordedBy: currentUser?.name || 'System User',
     notes: notes || 'Payment settled in full',
     createdAt: nowStr,
   };

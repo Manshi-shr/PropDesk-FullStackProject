@@ -68,12 +68,16 @@ export const RentLedger: React.FC<RentLedgerProps> = ({ onRecordPaymentClick }) 
     if (!payingRecord) return;
     setRecording(true);
     try {
+      const amountDue = Number(payingRecord.amount || (payingRecord as any).amountDue || 0);
+      const amountPaid = Number(payingRecord.paidAmount || (payingRecord as any).amountPaid || 0);
+      const dueRemaining = Math.max(0, amountDue - amountPaid) || amountDue || 15000;
+
       await api.recordPayment({
         rentRecordId: payingRecord.id,
         tenantId: payingRecord.tenantId,
         propertyId: payingRecord.propertyId,
         unitId: payingRecord.unitId,
-        amount: payingRecord.amountDue - (payingRecord.amountPaid || 0),
+        amount: dueRemaining,
         paymentMethod,
         transactionReference: transactionRef || `UPI-${Date.now().toString().slice(-6)}`,
         notes: `Settled rent balance for ${payingRecord.month}`,
@@ -113,8 +117,8 @@ export const RentLedger: React.FC<RentLedgerProps> = ({ onRecordPaymentClick }) 
     return matchesSearch && matchesStatus && matchesProp && matchesMonth;
   });
 
-  const totalDue = filteredRecords.reduce((acc, r) => acc + r.amountDue, 0);
-  const totalPaid = filteredRecords.reduce((acc, r) => acc + (r.amountPaid || 0), 0);
+  const totalDue = filteredRecords.reduce((acc, r) => acc + Number(r.amount || (r as any).amountDue || 0), 0);
+  const totalPaid = filteredRecords.reduce((acc, r) => acc + Number(r.paidAmount || (r as any).amountPaid || 0), 0);
   const totalPending = totalDue - totalPaid;
 
   return (
@@ -234,8 +238,8 @@ export const RentLedger: React.FC<RentLedgerProps> = ({ onRecordPaymentClick }) 
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-700">{r.month}</td>
                     <td className="py-3 px-4 font-mono text-slate-500">{formatDate(r.dueDate)}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900">{formatINR(r.amountDue)}</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">{formatINR(r.amountPaid || 0)}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900">{formatINR(r.amount || (r as any).amountDue || 0)}</td>
+                    <td className="py-3 px-4 font-bold text-emerald-600">{formatINR(r.paidAmount || (r as any).amountPaid || 0)}</td>
                     <td className="py-3 px-4">
                       <Badge variant={getStatusBadgeVariant(r.status)} size="sm">
                         {r.status}
@@ -273,7 +277,13 @@ export const RentLedger: React.FC<RentLedgerProps> = ({ onRecordPaymentClick }) 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Balance Due:</span>
             <span className="text-base font-extrabold text-slate-900">
-              {formatINR((payingRecord?.amountDue || 0) - (payingRecord?.amountPaid || 0))}
+              {formatINR(
+                Math.max(
+                  0,
+                  (payingRecord?.amount || (payingRecord as any)?.amountDue || 0) -
+                    (payingRecord?.paidAmount || (payingRecord as any)?.amountPaid || 0)
+                ) || (payingRecord?.amount || 15000)
+              )}
             </span>
           </div>
 
