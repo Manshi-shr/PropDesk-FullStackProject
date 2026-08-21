@@ -9,6 +9,7 @@ interface LoginPageProps {
   onSwitchToRegister?: () => void;
   onBackToLanding?: () => void;
   onBack?: () => void;
+  initialNotice?: string;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
@@ -17,12 +18,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onSwitchToRegister,
   onBackToLanding,
   onBack,
+  initialNotice,
 }) => {
   const [email, setEmail] = useState('manager@propdesk.in');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice || null);
 
   const handleGoToRegister = () => {
     if (onNavigateToRegister) onNavigateToRegister();
@@ -124,6 +127,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </div>
           </div>
+
+          {notice && (
+            <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs font-medium text-blue-800 flex items-center justify-between">
+              <span>{notice}</span>
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                className="text-blue-500 hover:text-blue-700 font-bold ml-2 text-sm"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700">

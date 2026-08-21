@@ -105,6 +105,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 shrink-0" /> Role-Based Access Control</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 shrink-0" /> RESTful OpenAPI Specs</span>
             </div>
+
+
           </div>
 
           {/* Interactive Live App Component Preview (Not a fake image) */}

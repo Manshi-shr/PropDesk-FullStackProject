@@ -18,6 +18,20 @@ async function startServer() {
   const uploadDir = path.join(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadDir));
 
+  // Static public directory for reports & assets
+  const publicDir = path.join(process.cwd(), 'public');
+  app.use(express.static(publicDir));
+
+  // Direct download endpoint for project report
+  app.get('/api/download-report', (req, res) => {
+    const filePath = path.join(publicDir, 'PropDesk_Project_Report.pdf');
+    res.download(filePath, 'PropDesk_Project_Report.pdf', (err) => {
+      if (err) {
+        res.status(404).json({ error: 'Report file not found' });
+      }
+    });
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({

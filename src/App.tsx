@@ -40,6 +40,7 @@ export default function App() {
 
   // Auth screen state (when not logged in)
   const [authScreen, setAuthScreen] = useState<'LANDING' | 'LOGIN' | 'REGISTER'>('LANDING');
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
 
   // Modals & Drawers
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -140,11 +141,24 @@ export default function App() {
     if (authScreen === 'LOGIN') {
       return (
         <LoginPage
+          initialNotice={loginNotice || undefined}
           onSuccess={handleAuthSuccess}
-          onNavigateToRegister={() => setAuthScreen('REGISTER')}
-          onSwitchToRegister={() => setAuthScreen('REGISTER')}
-          onBackToLanding={() => setAuthScreen('LANDING')}
-          onBack={() => setAuthScreen('LANDING')}
+          onNavigateToRegister={() => {
+            setLoginNotice(null);
+            setAuthScreen('REGISTER');
+          }}
+          onSwitchToRegister={() => {
+            setLoginNotice(null);
+            setAuthScreen('REGISTER');
+          }}
+          onBackToLanding={() => {
+            setLoginNotice(null);
+            setAuthScreen('LANDING');
+          }}
+          onBack={() => {
+            setLoginNotice(null);
+            setAuthScreen('LANDING');
+          }}
         />
       );
     }
@@ -163,16 +177,21 @@ export default function App() {
       <LandingPage
         onGetStarted={() => setAuthScreen('REGISTER')}
         onRegisterClick={() => setAuthScreen('REGISTER')}
-        onLogin={() => setAuthScreen('LOGIN')}
-        onLoginClick={() => setAuthScreen('LOGIN')}
+        onLogin={() => {
+          setLoginNotice('Please login first to access your account.');
+          setAuthScreen('LOGIN');
+        }}
+        onLoginClick={() => {
+          setLoginNotice('Please login first to access your account.');
+          setAuthScreen('LOGIN');
+        }}
         onViewDemoClick={(role) => {
           if (role === 'TENANT') {
-            switchRole('TENANT', 'usr-tnt-1');
-            setActiveView('tenant-home');
+            setLoginNotice('Please login first to access the tenant portal.');
           } else {
-            switchRole('PROPERTY_MANAGER');
-            setActiveView('dashboard');
+            setLoginNotice('Please login first to access the manager portal.');
           }
+          setAuthScreen('LOGIN');
         }}
       />
     );
