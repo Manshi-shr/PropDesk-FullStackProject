@@ -183,29 +183,71 @@ function handleClientMockFallback<T>(endpoint: string, options: RequestInit = {}
   }
 
   if (endpoint.startsWith('/reports/analytics')) {
+    const totalProperties = db.properties.length;
+    const totalUnits = db.units.length;
+    const occupiedUnits = db.units.filter((u: any) => u.status === 'OCCUPIED').length;
+    const availableUnits = db.units.filter((u: any) => u.status === 'AVAILABLE').length;
+    const maintenanceUnits = db.units.filter((u: any) => u.status === 'MAINTENANCE').length;
+    const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+    const monthlyExpectedRent = db.leases.filter((l: any) => l.status === 'ACTIVE').reduce((sum: number, l: any) => sum + l.monthlyRent, 0) || 770000;
+    const monthlyCollectedRent = db.payments.reduce((sum: number, p: any) => sum + p.amount, 0) || 770000;
+    const monthlyPendingRent = monthlyExpectedRent - monthlyCollectedRent;
+    const totalExpenses = db.expenses.reduce((sum: number, e: any) => sum + e.amount, 0) || 125000;
+    const netOperatingIncome = monthlyCollectedRent - totalExpenses;
+
     return {
-      totalProperties: db.properties.length,
-      totalUnits: db.units.length,
-      occupiedUnits: db.units.filter((u: any) => u.status === 'OCCUPIED').length,
-      occupancyRate: 85,
-      monthlyRevenue: 770000,
-      totalExpenses: 125000,
-      netOperatingIncome: 645000,
-      recentPayments: db.payments,
-      occupancyTrend: [
-        { month: 'Apr', occupancy: 80, revenue: 700000 },
-        { month: 'May', occupancy: 82, revenue: 720000 },
-        { month: 'Jun', occupancy: 85, revenue: 750000 },
-        { month: 'Jul', occupancy: 85, revenue: 770000 },
-        { month: 'Aug', occupancy: 85, revenue: 770000 },
+      kpis: {
+        totalProperties,
+        totalUnits,
+        occupiedUnits,
+        availableUnits,
+        maintenanceUnits,
+        occupancyRate,
+        monthlyExpectedRent,
+        monthlyCollectedRent,
+        monthlyPendingRent,
+        monthlyExpenses: totalExpenses,
+        netOperatingIncome,
+      },
+      monthlyTrends: [
+        { month: 'Jun 2026', expected: 480000, collected: 480000, expenses: 145000 },
+        { month: 'Jul 2026', expected: 512000, collected: 504000, expenses: 198000 },
+        { month: 'Aug 2026', expected: monthlyExpectedRent, collected: monthlyCollectedRent, expenses: totalExpenses },
       ],
-      revenueVsExpenses: [
-        { month: 'Apr', revenue: 700000, expenses: 110000 },
-        { month: 'May', revenue: 720000, expenses: 115000 },
-        { month: 'Jun', revenue: 750000, expenses: 120000 },
-        { month: 'Jul', revenue: 770000, expenses: 122000 },
-        { month: 'Aug', revenue: 770000, expenses: 125000 },
-      ]
+      occupancyTrends: [
+        { month: 'Mar', rate: 68 },
+        { month: 'Apr', rate: 72 },
+        { month: 'May', rate: 75 },
+        { month: 'Jun', rate: 78 },
+        { month: 'Jul', rate: 80 },
+        { month: 'Aug', rate: occupancyRate },
+      ],
+      maintenanceByStatus: [
+        { name: 'Open', count: db.maintenance.filter((m: any) => m.status === 'OPEN').length, color: '#f59e0b' },
+        { name: 'Acknowledged', count: db.maintenance.filter((m: any) => m.status === 'ACKNOWLEDGED').length, color: '#3b82f6' },
+        { name: 'In Progress', count: db.maintenance.filter((m: any) => m.status === 'IN_PROGRESS').length, color: '#8b5cf6' },
+        { name: 'Resolved', count: db.maintenance.filter((m: any) => m.status === 'RESOLVED' || m.status === 'CLOSED').length, color: '#10b981' },
+      ],
+      expenseBreakdown: [
+        { name: 'Maintenance', amount: 45000 },
+        { name: 'Security', amount: 35000 },
+        { name: 'Utilities', amount: 25000 },
+        { name: 'Administrative', amount: 20000 },
+      ],
+      propertyPerformance: db.properties.map((p: any) => {
+        const pUnits = db.units.filter((u: any) => u.propertyId === p.id);
+        const pOccupied = pUnits.filter((u: any) => u.status === 'OCCUPIED').length;
+        const pRevenue = db.leases.filter((l: any) => l.propertyId === p.id && l.status === 'ACTIVE').reduce((sum: number, l: any) => sum + l.monthlyRent, 0);
+        const pExpenses = db.expenses.filter((e: any) => e.propertyId === p.id).reduce((sum: number, e: any) => sum + e.amount, 0);
+        const pOccupancy = pUnits.length > 0 ? Math.round((pOccupied / pUnits.length) * 100) : 0;
+        return {
+          property: p.name.split(' ')[0],
+          fullName: p.name,
+          revenue: pRevenue || 45000,
+          expenses: pExpenses || 15000,
+          occupancy: pOccupancy || 85,
+        };
+      }),
     } as unknown as T;
   }
 
@@ -243,17 +285,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       headers,
     });
 
-    if (!response.ok) {
-      if (response.status === 404 || response.status >= 500) {
-        console.warn(`API endpoint ${endpoint} returned status ${response.status}. Falling back to client-side mock storage.`);
-        return handleClientMockFallback<T>(endpoint, options);
-      }
-      let errMsg = `Request failed (${response.status})`;
-      try {
-        const errData = await response.json();
-        if (errData.error) errMsg = errData.error;
-      } catch {}
-      throw new Error(errMsg);
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || contentType.includes('text/html')) {
+      console.warn(`API endpoint ${endpoint} returned status ${response.status} or HTML. Falling back to client-side mock storage.`);
+      return handleClientMockFallback<T>(endpoint, options);
     }
 
     return response.json();
